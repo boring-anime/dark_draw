@@ -5,13 +5,14 @@
 //  Created by Shubham Kumar on 02/05/26.
 //
 
+
 import PencilKit
 import UIKit
 
 class ViewController: UIViewController, PKCanvasViewDelegate {
-    
     private let canvasView: PKCanvasView
     private let toolPicker = PKToolPicker()
+    private var toolPickerShows: Bool = true
 
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
         self.canvasView = PKCanvasView()
@@ -31,11 +32,18 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
         canvasView.drawing = drawing
         canvasView.delegate = self
         view.backgroundColor = .systemBackground
         view.addSubview(canvasView)
+
+        // Add navigation bar with toggle button
+        let toggleButton = UIBarButtonItem(image: UIImage(systemName: "pencil.tip"), style: .plain, target: self, action: #selector(toggleToolPicker))
+        
+    
+        
+        navigationItem.rightBarButtonItem = toggleButton
+        navigationItem.title = "Drawing"
     }
     
     override func viewDidLayoutSubviews() {
@@ -45,12 +53,23 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        
-        // let toolPicker = PKToolPicker()
-//        toolPicker.addObserver(self, forKeyPath: "selectedTool", options: .new, context: nil)
-        toolPicker.setVisible(true, forFirstResponder: canvasView)
+        updateToolPicker()
+    }
+
+    @objc private func toggleToolPicker() {
+        toolPickerShows.toggle()
+        updateToolPicker()
+        navigationItem.rightBarButtonItem?.title = toolPickerShows ? "Hide tool picker" : "Show tool picker"
+    }
+
+    private func updateToolPicker() {
+        toolPicker.setVisible(toolPickerShows, forFirstResponder: canvasView)
         toolPicker.addObserver(canvasView)
-        canvasView.becomeFirstResponder()
+        if toolPickerShows {
+            canvasView.becomeFirstResponder()
+        } else {
+            canvasView.resignFirstResponder()
+        }
     }
     
 //    Canvas
