@@ -21,7 +21,55 @@ class MainViewController: UIViewController, UICollectionViewDataSource, UICollec
         collectionView.register(CanvasCell.self, forCellWithReuseIdentifier: "CanvasCell")
         view.addSubview(collectionView)
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addCanvas))
+        let longPress = UILongPressGestureRecognizer(target: self, action: #selector(handleLongPress(_:)))
+        collectionView.addGestureRecognizer(longPress)
         fetchCanvases()
+    }
+    @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began else { return }
+        let point = gesture.location(in: collectionView)
+        guard let indexPath = collectionView.indexPathForItem(at: point) else { return }
+        let canvas = canvases[indexPath.item]
+        let alert = UIAlertController(title: "Canvas Options", message: nil, preferredStyle: .actionSheet)
+        alert.addAction(UIAlertAction(title: "Rename", style: .default) { [weak self] _ in
+            self?.presentRenameAlert(for: canvas)
+        })
+        alert.addAction(UIAlertAction(title: "Delete", style: .destructive) { [weak self] _ in
+            self?.deleteCanvas(canvas)
+        })
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        if let vc = collectionView.window?.rootViewController {
+            vc.present(alert, animated: true)
+        } else {
+            self.present(alert, animated: true)
+        }
+    }
+
+    private func presentRenameAlert(for canvas: CanvasModel) {
+        let alert = UIAlertController(title: "Rename Canvas", message: "Enter new title", preferredStyle: .alert)
+        alert.addTextField { $0.text = canvas.title }
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: "Rename", style: .default) { [weak self] _ in
+            guard let self = self, let newTitle = alert.textFields?.first?.text, !newTitle.isEmpty else { return }
+            canvas.title = newTitle
+            do {
+                try self.context.save()
+                self.fetchCanvases()
+            } catch {
+                print("Failed to rename canvas: \(error)")
+            }
+        })
+        present(alert, animated: true)
+    }
+
+    private func deleteCanvas(_ canvas: CanvasModel) {
+        context.delete(canvas)
+        do {
+            try context.save()
+            fetchCanvases()
+        } catch {
+            print("Failed to delete canvas: \(error)")
+        }
     }
 
     func fetchCanvases() {
