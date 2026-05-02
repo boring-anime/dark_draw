@@ -10,12 +10,22 @@ import UIKit
 
 class ViewController: UIViewController, PKCanvasViewDelegate {
     
-    private let canvasView: PKCanvasView = {
-        let canvasView = PKCanvasView()
+    private let canvasView: PKCanvasView
+    private let toolPicker = PKToolPicker()
+
+    override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
+        self.canvasView = PKCanvasView()
+        super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .clear
-        return canvasView
-    }()
+    }
+
+    required init?(coder: NSCoder) {
+        self.canvasView = PKCanvasView()
+        super.init(coder: coder)
+        canvasView.drawingPolicy = .anyInput
+        canvasView.backgroundColor = .clear
+    }
     
     let drawing = PKDrawing()
 
@@ -36,7 +46,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         
-        let toolPicker = PKToolPicker()
+        // let toolPicker = PKToolPicker()
 //        toolPicker.addObserver(self, forKeyPath: "selectedTool", options: .new, context: nil)
         toolPicker.setVisible(true, forFirstResponder: canvasView)
         toolPicker.addObserver(canvasView)
