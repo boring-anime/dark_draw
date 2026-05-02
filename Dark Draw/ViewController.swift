@@ -11,7 +11,7 @@ import UIKit
 import CoreData
 
 class ViewController: UIViewController, PKCanvasViewDelegate {
-    private let canvasView: PKCanvasView
+    let canvasView: PKCanvasView
     private let toolPicker = PKToolPicker()
     private var toolPickerShows: Bool = true
     private var drawing: PKDrawing {
@@ -37,7 +37,24 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         super.viewDidLoad()
         canvasView.delegate = self
         view.backgroundColor = .systemBackground
+        canvasView.frame = view.bounds
         view.addSubview(canvasView)
+
+        // Enable zooming
+        canvasView.minimumZoomScale = 0.2
+        canvasView.maximumZoomScale = 4.0
+        canvasView.zoomScale = 1.0
+        canvasView.isScrollEnabled = true
+
+        // Infinite canvas using PKCanvasView's built-in scroll/zoom
+        let canvasSize = CGSize(width: 5000, height: 5000)
+        canvasView.contentSize = canvasSize
+        // Center the visible rect on launch
+        let centerOffset = CGPoint(
+            x: (canvasSize.width - view.bounds.width) / 2,
+            y: (canvasSize.height - view.bounds.height) / 2
+        )
+        canvasView.setContentOffset(centerOffset, animated: false)
 
         let saveButton = UIBarButtonItem(
             image: UIImage(systemName: "arrow.down.doc"),
@@ -71,6 +88,9 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         canvasView.frame = view.bounds
+        // Keep zoom scale and content offset consistent on rotation/resize
+        canvasView.minimumZoomScale = 0.2
+        canvasView.maximumZoomScale = 4.0
     }
     
     override func viewDidAppear(_ animated: Bool) {
