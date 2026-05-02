@@ -49,7 +49,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             image: UIImage(systemName: "arrow.up.doc"),
             style: .plain,
             target: self,
-            action: #selector(loadDrawingFromCoreData)
+            action: #selector(showDrawingPicker)
         )
         let toggleButton = UIBarButtonItem(
             image: UIImage(systemName: "pencil.tip"),
@@ -102,20 +102,23 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     }
 
 
-    @objc private func loadDrawingFromCoreData() {
+    @objc private func showDrawingPicker() {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
         let fetchRequest: NSFetchRequest<DesignModel> = DesignModel.fetchRequest()
         do {
             let results = try context.fetch(fetchRequest)
-            if let firstDesign = results.first {
-                canvasView.drawing = firstDesign.drawing
+            let picker = DrawingPickerViewController()
+            picker.drawings = results
+            picker.onSelect = { [weak self] design in
+                self?.canvasView.drawing = design.drawing
                 print("Drawing loaded from Core Data.")
-            } else {
-                print("No saved drawings found.")
             }
+            let nav = UINavigationController(rootViewController: picker)
+            picker.title = "Select Drawing"
+            present(nav, animated: true)
         } catch {
-            print("Failed to load drawing: \(error)")
+            print("Failed to load drawings: \(error)")
         }
     }
 
