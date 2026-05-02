@@ -12,6 +12,7 @@ import CoreData
 
 class ViewController: UIViewController, PKCanvasViewDelegate {
     let canvasView: PKCanvasView
+    var canvas: CanvasModel? // The current canvas
     private let toolPicker = PKToolPicker()
     private var toolPickerShows: Bool = true
     private var drawing: PKDrawing {
@@ -81,8 +82,17 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             action: #selector(eraseAll)
         )
         navigationItem.rightBarButtonItems = [eraseButton, toggleButton]
-        navigationItem.leftBarButtonItems = [saveButton, loadButton]
-        navigationItem.title = "Drawing"
+        // Add a custom back button to return to main page
+        let backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backToMainPage))
+        navigationItem.leftBarButtonItems = [backButton, saveButton, loadButton]
+
+        
+        // Set navigation title to canvas title if available
+        if let canvas = canvas {
+            navigationItem.title = canvas.title
+        } else {
+            navigationItem.title = "Drawing"
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -107,15 +117,25 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         drawing = PKDrawing()
     }
 
+    @objc private func backToMainPage() {
+        navigationController?.popViewController(animated: true)
+    }
+
 
     @objc private func saveDrawingToCoreData() {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
+        guard let canvas = canvas else { return }
         let design = DesignModel(context: context)
         design.drawing = canvasView.drawing
+        // Optionally add a timestamp property to DesignModel for ordering
+        design.setValue(Date(), forKey: "timestamp")
+        // Add drawing to canvas
+        let drawings = canvas.mutableSetValue(forKey: "drawings")
+        drawings.add(design)
         do {
             try context.save()
-            print("Drawing saved to Core Data.")
+            print("Drawing saved to Canvas.")
         } catch {
             print("Failed to save drawing: \(error)")
         }
@@ -123,23 +143,17 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
 
 
     @objc private func showDrawingPicker() {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
-        let context = appDelegate.persistentContainer.viewContext
-        let fetchRequest: NSFetchRequest<DesignModel> = DesignModel.fetchRequest()
-        do {
-            let results = try context.fetch(fetchRequest)
-            let picker = DrawingPickerViewController()
-            picker.drawings = results
-            picker.onSelect = { [weak self] design in
-                self?.canvasView.drawing = design.drawing
-                print("Drawing loaded from Core Data.")
-            }
-            let nav = UINavigationController(rootViewController: picker)
-            picker.title = "Select Drawing"
-            present(nav, animated: true)
-        } catch {
-            print("Failed to load drawings: \(error)")
+        guard let canvas = canvas else { return }
+        let drawings = canvas.drawingsArray
+        let picker = DrawingPickerViewController()
+        picker.drawings = drawings
+        picker.onSelect = { [weak self] design in
+            self?.canvasView.drawing = design.drawing
+            print("Drawing loaded from Canvas.")
         }
+        let nav = UINavigationController(rootViewController: picker)
+        picker.title = "Select Drawing"
+        present(nav, animated: true)
     }
 
     private func updateToolPicker() {

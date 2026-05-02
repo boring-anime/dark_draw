@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24837" systemVersion="25E253" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="CanvasModel" representedClassName="CanvasModel" syncable="YES" codeGenerationType="class">
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="drawings" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DesignModel" inverseName="canvas" inverseEntity="DesignModel"/>
+    </entity>
     <entity name="DesignModel" representedClassName="DesignModel" syncable="YES" codeGenerationType="class">
         <attribute name="drawingData" optional="YES" attributeType="Binary"/>
+        <attribute name="timestamp" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="canvas" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CanvasModel" inverseName="drawings" inverseEntity="CanvasModel"/>
     </entity>
 </model>
