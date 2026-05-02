@@ -8,6 +8,7 @@
 
 import PencilKit
 import UIKit
+import CoreData
 
 class ViewController: UIViewController, PKCanvasViewDelegate {
     private let canvasView: PKCanvasView
@@ -42,17 +43,20 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             image: UIImage(systemName: "arrow.down.doc"),
             style: .plain,
             target: self,
-            action: #selector(saveDrawing)
+            action: #selector(saveDrawingToCoreData)
         )
-        
-        // Add navigation bar with toggle button
+        let loadButton = UIBarButtonItem(
+            image: UIImage(systemName: "arrow.up.doc"),
+            style: .plain,
+            target: self,
+            action: #selector(loadDrawingFromCoreData)
+        )
         let toggleButton = UIBarButtonItem(
-            image: UIImage(systemName: "pencil.tip"), 
-            style: .plain, 
-            target: self, 
+            image: UIImage(systemName: "pencil.tip"),
+            style: .plain,
+            target: self,
             action: #selector(toggleToolPicker)
         )
-        
         let eraseButton = UIBarButtonItem(
             image: UIImage(systemName: "trash.fill"),
             style: .plain,
@@ -60,7 +64,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             action: #selector(eraseAll)
         )
         navigationItem.rightBarButtonItems = [eraseButton, toggleButton]
-        navigationItem.leftBarButtonItem = saveButton
+        navigationItem.leftBarButtonItems = [saveButton, loadButton]
         navigationItem.title = "Drawing"
     }
     
@@ -83,9 +87,37 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         drawing = PKDrawing()
     }
 
-    @objc private func saveDrawing() {
-            drawing.saveToPhotoLibrary()
+
+    @objc private func saveDrawingToCoreData() {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistentContainer.viewContext
+        let design = DesignModel(context: context)
+        design.drawing = canvasView.drawing
+        do {
+            try context.save()
+            print("Drawing saved to Core Data.")
+        } catch {
+            print("Failed to save drawing: \(error)")
         }
+    }
+
+
+    @objc private func loadDrawingFromCoreData() {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistentContainer.viewContext
+        let fetchRequest: NSFetchRequest<DesignModel> = DesignModel.fetchRequest()
+        do {
+            let results = try context.fetch(fetchRequest)
+            if let firstDesign = results.first {
+                canvasView.drawing = firstDesign.drawing
+                print("Drawing loaded from Core Data.")
+            } else {
+                print("No saved drawings found.")
+            }
+        } catch {
+            print("Failed to load drawing: \(error)")
+        }
+    }
 
     private func updateToolPicker() {
         toolPicker.setVisible(toolPickerShows, forFirstResponder: canvasView)

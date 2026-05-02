@@ -292,6 +292,7 @@
 				DEVELOPMENT_TEAM = QHZ8TWT53A;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Dark Draw/Info.plist";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "To save photos to camera roll";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -324,6 +325,7 @@
 				DEVELOPMENT_TEAM = QHZ8TWT53A;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Dark Draw/Info.plist";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "To save photos to camera roll";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
