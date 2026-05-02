@@ -13,6 +13,10 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     private let canvasView: PKCanvasView
     private let toolPicker = PKToolPicker()
     private var toolPickerShows: Bool = true
+    private var drawing: PKDrawing {
+        get { canvasView.drawing }
+        set { canvasView.drawing = newValue }
+    }
 
     override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
         self.canvasView = PKCanvasView()
@@ -27,22 +31,36 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         canvasView.drawingPolicy = .anyInput
         canvasView.backgroundColor = .clear
     }
-    
-    let drawing = PKDrawing()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        canvasView.drawing = drawing
         canvasView.delegate = self
         view.backgroundColor = .systemBackground
         view.addSubview(canvasView)
 
+        let saveButton = UIBarButtonItem(
+            image: UIImage(systemName: "arrow.down.doc"),
+            style: .plain,
+            target: self,
+            action: #selector(saveDrawing)
+        )
+        
         // Add navigation bar with toggle button
-        let toggleButton = UIBarButtonItem(image: UIImage(systemName: "pencil.tip"), style: .plain, target: self, action: #selector(toggleToolPicker))
+        let toggleButton = UIBarButtonItem(
+            image: UIImage(systemName: "pencil.tip"), 
+            style: .plain, 
+            target: self, 
+            action: #selector(toggleToolPicker)
+        )
         
-    
-        
-        navigationItem.rightBarButtonItem = toggleButton
+        let eraseButton = UIBarButtonItem(
+            image: UIImage(systemName: "trash.fill"),
+            style: .plain,
+            target: self,
+            action: #selector(eraseAll)
+        )
+        navigationItem.rightBarButtonItems = [eraseButton, toggleButton]
+        navigationItem.leftBarButtonItem = saveButton
         navigationItem.title = "Drawing"
     }
     
@@ -59,8 +77,15 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     @objc private func toggleToolPicker() {
         toolPickerShows.toggle()
         updateToolPicker()
-        navigationItem.rightBarButtonItem?.title = toolPickerShows ? "Hide tool picker" : "Show tool picker"
     }
+
+    @objc private func eraseAll() {
+        drawing = PKDrawing()
+    }
+
+    @objc private func saveDrawing() {
+            drawing.saveToPhotoLibrary()
+        }
 
     private func updateToolPicker() {
         toolPicker.setVisible(toolPickerShows, forFirstResponder: canvasView)
@@ -75,6 +100,8 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
 //    Canvas
     
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+        // Drawing state is always in sync with canvasView.drawing
+        // You can add additional logic here if you want to observe changes
         print("Drawing did change")
     }
     
