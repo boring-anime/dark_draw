@@ -13,6 +13,9 @@ import CoreData
 class ViewController: UIViewController, PKCanvasViewDelegate {
     let canvasView: PKCanvasView
     var canvas: CanvasModel? // The current canvas
+    // Store last scroll/zoom state
+    private var lastContentOffset: CGPoint?
+    private var lastZoomScale: CGFloat?
     private let toolPicker = PKToolPicker()
     private var toolPickerShows: Bool = true
     private var drawing: PKDrawing {
@@ -57,18 +60,6 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         )
         canvasView.setContentOffset(centerOffset, animated: false)
 
-        let saveButton = UIBarButtonItem(
-            image: UIImage(systemName: "arrow.down.doc"),
-            style: .plain,
-            target: self,
-            action: #selector(saveDrawingToCoreData)
-        )
-        let loadButton = UIBarButtonItem(
-            image: UIImage(systemName: "arrow.up.doc"),
-            style: .plain,
-            target: self,
-            action: #selector(showDrawingPicker)
-        )
         let toggleButton = UIBarButtonItem(
             image: UIImage(systemName: "pencil.tip"),
             style: .plain,
@@ -84,12 +75,24 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         navigationItem.rightBarButtonItems = [eraseButton, toggleButton]
         // Add a custom back button to return to main page
         let backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backToMainPage))
-        navigationItem.leftBarButtonItems = [backButton, saveButton, loadButton]
+        navigationItem.leftBarButtonItems = [backButton]
 
         
         // Set navigation title to canvas title if available
         if let canvas = canvas {
             navigationItem.title = canvas.title
+            // Load last drawing if exists
+            if let lastDesign = canvas.drawingsArray.last {
+                canvasView.drawing = lastDesign.drawing
+            }
+            // Restore last scroll/zoom state if available
+            if let offsetData = canvas.value(forKey: "lastContentOffset") as? Data,
+               let offset = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(offsetData) as? CGPoint {
+                lastContentOffset = offset
+            }
+            if let zoom = canvas.value(forKey: "lastZoomScale") as? NSNumber {
+                lastZoomScale = CGFloat(truncating: zoom)
+            }
         } else {
             navigationItem.title = "Drawing"
         }
@@ -103,6 +106,22 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         canvasView.maximumZoomScale = 4.0
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // Restore zoom and offset before view is visible to avoid lag
+        if let zoom = lastZoomScale, let offset = lastContentOffset {
+            // Set both in same async block to ensure layout is ready
+            DispatchQueue.main.async {
+                self.canvasView.zoomScale = zoom
+                self.canvasView.setContentOffset(offset, animated: false)
+            }
+        } else if let zoom = lastZoomScale {
+            self.canvasView.zoomScale = zoom
+        } else if let offset = lastContentOffset {
+            self.canvasView.setContentOffset(offset, animated: false)
+        }
+    }
+
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         updateToolPicker()
@@ -118,43 +137,53 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     }
 
     @objc private func backToMainPage() {
-        navigationController?.popViewController(animated: true)
+        // Save scroll/zoom state to Core Data before leaving
+        if let canvas = canvas {
+            let offset = canvasView.contentOffset
+            let zoom = canvasView.zoomScale
+            let offsetData = try? NSKeyedArchiver.archivedData(withRootObject: offset, requiringSecureCoding: false)
+            canvas.setValue(offsetData, forKey: "lastContentOffset")
+            canvas.setValue(NSNumber(value: Double(zoom)), forKey: "lastZoomScale")
+            if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+                let context = appDelegate.persistentContainer.viewContext
+                do { try context.save() } catch { print("Failed to save scroll/zoom: \(error)") }
+            }
+        }
+        Task {
+            await generateAndSavePreviewImage()
+            navigationController?.popViewController(animated: true)
+        }
     }
 
-
-    @objc private func saveDrawingToCoreData() {
+    private func generateAndSavePreviewImage() async {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
         guard let canvas = canvas else { return }
-        let design = DesignModel(context: context)
-        design.drawing = canvasView.drawing
-        // Optionally add a timestamp property to DesignModel for ordering
-        design.setValue(Date(), forKey: "timestamp")
-        // Add drawing to canvas
-        let drawings = canvas.mutableSetValue(forKey: "drawings")
-        drawings.add(design)
-        do {
-            try context.save()
-            print("Drawing saved to Canvas.")
-        } catch {
-            print("Failed to save drawing: \(error)")
+        // Get the latest drawing (if any)
+        guard let design = canvas.drawingsArray.last else { return }
+        let size = CGSize(width: 120, height: 120)
+        let rect = CGRect(origin: .zero, size: size)
+        // Create a Core Graphics context manually
+        UIGraphicsBeginImageContextWithOptions(size, false, 0)
+        guard let cgContext = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return }
+        UIColor.clear.setFill()
+        cgContext.fill(rect)
+        // Await the async draw call
+        await design.drawing.draw(in: cgContext, frame: rect, from: rect, darkUserInterfaceStyle: false)
+        let image = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        // Save the preview image to Core Data
+        if let image = image, let data = image.pngData() {
+            design.setValue(data, forKey: "previewImage")
+            do {
+                try context.save()
+            } catch {
+                print("Failed to save preview image: \(error)")
+            }
         }
     }
 
 
-    @objc private func showDrawingPicker() {
-        guard let canvas = canvas else { return }
-        let drawings = canvas.drawingsArray
-        let picker = DrawingPickerViewController()
-        picker.drawings = drawings
-        picker.onSelect = { [weak self] design in
-            self?.canvasView.drawing = design.drawing
-            print("Drawing loaded from Canvas.")
-        }
-        let nav = UINavigationController(rootViewController: picker)
-        picker.title = "Select Drawing"
-        present(nav, animated: true)
-    }
 
     private func updateToolPicker() {
         toolPicker.setVisible(toolPickerShows, forFirstResponder: canvasView)
@@ -169,9 +198,20 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
 //    Canvas
     
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
-        // Drawing state is always in sync with canvasView.drawing
-        // You can add additional logic here if you want to observe changes
-        print("Drawing did change")
+        // Save drawing to Core Data on every change
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistentContainer.viewContext
+        guard let canvas = canvas else { return }
+        let design = DesignModel(context: context)
+        design.drawing = canvasView.drawing
+        design.setValue(Date(), forKey: "timestamp")
+        let drawings = canvas.mutableSetValue(forKey: "drawings")
+        drawings.add(design)
+        do {
+            try context.save()
+        } catch {
+            print("Failed to auto-save drawing: \(error)")
+        }
     }
     
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {

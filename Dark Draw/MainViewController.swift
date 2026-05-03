@@ -148,7 +148,12 @@ class CanvasCell: UICollectionViewCell {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(with canvas: CanvasModel) {
         titleLabel.text = canvas.title
-        // PKDrawing to UIImage preview is disabled due to async API change
-        previewView.image = UIImage(systemName: "scribble")
+        // Show preview image from Core Data if available
+        if let previewData = canvas.drawingsArray.first?.value(forKey: "previewImage") as? Data,
+           let image = UIImage(data: previewData) {
+            previewView.image = image
+        } else {
+            previewView.image = UIImage(systemName: "scribble")
+        }
     }
 }
