@@ -87,8 +87,8 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             }
             // Restore last scroll/zoom state if available
             if let offsetData = canvas.value(forKey: "lastContentOffset") as? Data,
-               let offset = try? NSKeyedUnarchiver.unarchiveTopLevelObjectWithData(offsetData) as? CGPoint {
-                lastContentOffset = offset
+               let nsValue = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSValue.self, from: offsetData) {
+                lastContentOffset = nsValue.cgPointValue
             }
             if let zoom = canvas.value(forKey: "lastZoomScale") as? NSNumber {
                 lastZoomScale = CGFloat(truncating: zoom)

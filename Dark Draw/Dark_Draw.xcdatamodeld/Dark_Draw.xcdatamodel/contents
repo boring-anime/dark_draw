@@ -3,6 +3,7 @@
     <entity name="CanvasModel" representedClassName="CanvasModel" syncable="YES" codeGenerationType="class">
         <attribute name="lastContentOffset" optional="YES" attributeType="Binary"/>
         <attribute name="lastZoomScale" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="thumbnail" optional="YES" attributeType="Binary"/>
         <attribute name="title" optional="YES" attributeType="String"/>
         <relationship name="drawings" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DesignModel" inverseName="canvas" inverseEntity="DesignModel"/>
     </entity>
