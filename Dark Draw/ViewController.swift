@@ -51,7 +51,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         canvasView.isScrollEnabled = true
 
         // Infinite canvas using PKCanvasView's built-in scroll/zoom
-        let canvasSize = CGSize(width: 5000, height: 5000)
+        let canvasSize = CGSize(width: 10000, height: 5000)
         canvasView.contentSize = canvasSize
         // Center the visible rect on launch
         let centerOffset = CGPoint(
@@ -72,7 +72,14 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             target: self,
             action: #selector(eraseAll)
         )
-        navigationItem.rightBarButtonItems = [eraseButton, toggleButton]
+        let zoomResetButton = UIBarButtonItem(
+            image: UIImage(systemName: "1.magnifyingglass"),
+            style: .plain,
+            target: self,
+            action: #selector(resetZoom)
+        )
+        navigationItem.rightBarButtonItems = [zoomResetButton, eraseButton, toggleButton]
+           
         // Add a custom back button to return to main page
         let backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backToMainPage))
         navigationItem.leftBarButtonItems = [backButton]
@@ -154,6 +161,13 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             navigationController?.popViewController(animated: true)
         }
     }
+    
+     @objc private func resetZoom() {
+                // Animate zoom reset to 1x
+                UIView.animate(withDuration: 0.25) {
+                    self.canvasView.zoomScale = 1.0
+                }
+            }
 
     private func generateAndSavePreviewImage() async {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
