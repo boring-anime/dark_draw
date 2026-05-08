@@ -161,18 +161,27 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         guard let canvas = canvas else { return }
         // Get the latest drawing (if any)
         guard let design = canvas.drawingsArray.last else { return }
-        let size = CGSize(width: 120, height: 120)
-        let rect = CGRect(origin: .zero, size: size)
-        // Create a Core Graphics context manually
-        UIGraphicsBeginImageContextWithOptions(size, false, 0)
-        guard let cgContext = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return }
+        let drawing = design.drawing
+        let bounds = drawing.bounds.isNull ? CGRect(x: 0, y: 0, width: 120, height: 120) : drawing.bounds
+        let targetSize = CGSize(width: 120, height: 120)
+        let renderRect = CGRect(origin: .zero, size: targetSize)
+        UIGraphicsBeginImageContextWithOptions(targetSize, false, 0)
+        guard let ctx = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return }
         UIColor.clear.setFill()
-        cgContext.fill(rect)
-        // Await the async draw call
-        await design.drawing.draw(in: cgContext, frame: rect, from: rect, darkUserInterfaceStyle: false)
+        ctx.fill(renderRect)
+        // Flip the context vertically (UIKit vs Core Graphics)
+        ctx.saveGState()
+        ctx.translateBy(x: 0, y: targetSize.height)
+        ctx.scaleBy(x: 1, y: -1)
+        // Calculate scale and translation to fit drawing into preview
+        let scale = min(targetSize.width / bounds.width, targetSize.height / bounds.height)
+        ctx.translateBy(x: (targetSize.width - bounds.width * scale) / 2 - bounds.minX * scale,
+                y: (targetSize.height - bounds.height * scale) / 2 - bounds.minY * scale)
+        ctx.scaleBy(x: scale, y: scale)
+        await drawing.draw(in: ctx, frame: bounds, from: bounds, darkUserInterfaceStyle: false)
+        ctx.restoreGState()
         let image = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
-        // Save the preview image to Core Data
         if let image = image, let data = image.pngData() {
             design.setValue(data, forKey: "previewImage")
             do {
@@ -203,14 +212,41 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         let context = appDelegate.persistentContainer.viewContext
         guard let canvas = canvas else { return }
         let design = DesignModel(context: context)
-        design.drawing = canvasView.drawing
+        let currentDrawing = canvasView.drawing
+        design.drawing = currentDrawing
         design.setValue(Date(), forKey: "timestamp")
         let drawings = canvas.mutableSetValue(forKey: "drawings")
         drawings.add(design)
-        do {
-            try context.save()
-        } catch {
-            print("Failed to auto-save drawing: \(error)")
+        // Generate and save preview image for the current drawing
+        Task {
+            let drawing = currentDrawing
+            let bounds = drawing.bounds.isNull ? CGRect(x: 0, y: 0, width: 120, height: 120) : drawing.bounds
+            let targetSize = CGSize(width: 120, height: 120)
+            let renderRect = CGRect(origin: .zero, size: targetSize)
+            UIGraphicsBeginImageContextWithOptions(targetSize, false, 0)
+            guard let ctx = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return }
+            UIColor.clear.setFill()
+            ctx.fill(renderRect)
+            // Flip the context vertically (UIKit vs Core Graphics)
+            ctx.saveGState()
+            ctx.translateBy(x: 0, y: targetSize.height)
+            ctx.scaleBy(x: 1, y: -1)
+            let scale = min(targetSize.width / bounds.width, targetSize.height / bounds.height)
+            ctx.translateBy(x: (targetSize.width - bounds.width * scale) / 2 - bounds.minX * scale,
+                            y: (targetSize.height - bounds.height * scale) / 2 - bounds.minY * scale)
+            ctx.scaleBy(x: scale, y: scale)
+            await drawing.draw(in: ctx, frame: bounds, from: bounds, darkUserInterfaceStyle: false)
+            ctx.restoreGState()
+            let image = UIGraphicsGetImageFromCurrentImageContext()
+            UIGraphicsEndImageContext()
+            if let image = image, let data = image.pngData() {
+                design.setValue(data, forKey: "previewImage")
+            }
+            do {
+                try context.save()
+            } catch {
+                print("Failed to auto-save drawing or preview: \(error)")
+            }
         }
     }
     

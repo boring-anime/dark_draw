@@ -2,6 +2,10 @@ import UIKit
 import CoreData
 
 class MainViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegateFlowLayout {
+        override func viewWillAppear(_ animated: Bool) {
+            super.viewWillAppear(animated)
+            fetchCanvases()
+        }
     var collectionView: UICollectionView!
     var canvases: [CanvasModel] = []
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
@@ -148,8 +152,9 @@ class CanvasCell: UICollectionViewCell {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func configure(with canvas: CanvasModel) {
         titleLabel.text = canvas.title
-        // Show preview image from Core Data if available
-        if let previewData = canvas.drawingsArray.first?.value(forKey: "previewImage") as? Data,
+        // Show the latest preview image from Core Data if available
+        if let lastDesign = canvas.drawingsArray.last,
+           let previewData = lastDesign.value(forKey: "previewImage") as? Data,
            let image = UIImage(data: previewData) {
             previewView.image = image
         } else {
