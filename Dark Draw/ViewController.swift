@@ -221,6 +221,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
 //    Canvas
     
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
+        growCanvasIfNeeded()
         // Save drawing to Core Data on every change
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
         let context = appDelegate.persistentContainer.viewContext
@@ -261,6 +262,40 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             } catch {
                 print("Failed to auto-save drawing or preview: \(error)")
             }
+        }
+    }
+
+    /// Grows the canvas only in the direction the drawing reaches the edge, keeping the drawing's position fixed.
+    private func growCanvasIfNeeded() {
+        let drawingBounds = canvasView.drawing.bounds
+        var contentSize = canvasView.contentSize
+        let zoom = canvasView.zoomScale
+        var offset = canvasView.contentOffset
+        var didGrow = false
+
+        // Grow right
+        if drawingBounds.maxX >= contentSize.width - 100 {
+            contentSize.width += 1000 * zoom
+            didGrow = true
+        }
+        // Grow bottom
+        if drawingBounds.maxY >= contentSize.height - 100 {
+            contentSize.height += 1000 * zoom
+            didGrow = true
+        }
+        // Grow left
+        if drawingBounds.minX <= 100 {
+            contentSize.width += 1000 * zoom
+            didGrow = true
+        }
+        // Grow top
+        if drawingBounds.minY <= 100 {
+            contentSize.height += 1000 * zoom
+            didGrow = true
+        }
+        if didGrow {
+            canvasView.contentSize = contentSize
+            // Do not change contentOffset; user can pan to new area
         }
     }
     
