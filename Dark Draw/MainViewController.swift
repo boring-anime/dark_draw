@@ -12,7 +12,7 @@ class MainViewController: UIViewController, UICollectionViewDataSource, UICollec
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "My Canvases"
+        title = "Dark Draw"
         view.backgroundColor = .systemBackground
         let layout = UICollectionViewFlowLayout()
         layout.itemSize = CGSize(width: 160, height: 180)
