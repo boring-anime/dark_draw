@@ -144,6 +144,8 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
     }
 
     @objc private func backToMainPage() {
+        // Before leaving, trim the canvas size to fit the drawing, but not smaller than default
+        trimCanvasToDrawing()
         // Save scroll/zoom state to Core Data before leaving
         if let canvas = canvas {
             let offset = canvasView.contentOffset
@@ -159,6 +161,19 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         Task {
             await generateAndSavePreviewImage()
             navigationController?.popViewController(animated: true)
+        }
+    }
+
+    /// Shrinks the canvas to the minimal bounding rect containing the drawing, but not smaller than the default size.
+    private func trimCanvasToDrawing() {
+        let defaultWidth: CGFloat = 10000
+        let defaultHeight: CGFloat = 5000
+        let bounds = canvasView.drawing.bounds
+        let newWidth = max(bounds.maxX, defaultWidth)
+        let newHeight = max(bounds.maxY, defaultHeight)
+        // Only shrink if current size is larger than needed
+        if canvasView.contentSize.width > newWidth || canvasView.contentSize.height > newHeight {
+            canvasView.contentSize = CGSize(width: newWidth, height: newHeight)
         }
     }
     
@@ -270,7 +285,6 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         let drawingBounds = canvasView.drawing.bounds
         var contentSize = canvasView.contentSize
         let zoom = canvasView.zoomScale
-        var offset = canvasView.contentOffset
         var didGrow = false
 
         // Grow right
