@@ -5,14 +5,13 @@
 //  Created by Shubham Kumar on 02/05/26.
 //
 
-
+import CoreData
 import PencilKit
 import UIKit
-import CoreData
 
 class ViewController: UIViewController, PKCanvasViewDelegate {
     let canvasView: PKCanvasView
-    var canvas: CanvasModel? // The current canvas
+    var canvas: CanvasModel?  // The current canvas
     // Store last scroll/zoom state
     private var lastContentOffset: CGPoint?
     private var lastZoomScale: CGFloat?
@@ -23,7 +22,8 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         set { canvasView.drawing = newValue }
     }
 
-    override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
+    override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?)
+    {
         self.canvasView = PKCanvasView()
         super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
         canvasView.drawingPolicy = .anyInput
@@ -78,13 +78,19 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             target: self,
             action: #selector(resetZoom)
         )
-        navigationItem.rightBarButtonItems = [zoomResetButton, eraseButton, toggleButton]
-           
+        navigationItem.rightBarButtonItems = [
+            zoomResetButton, eraseButton, toggleButton,
+        ]
+
         // Add a custom back button to return to main page
-        let backButton = UIBarButtonItem(image: UIImage(systemName: "chevron.left"), style: .plain, target: self, action: #selector(backToMainPage))
+        let backButton = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(backToMainPage)
+        )
         navigationItem.leftBarButtonItems = [backButton]
 
-        
         // Set navigation title to canvas title if available
         if let canvas = canvas {
             navigationItem.title = canvas.title
@@ -93,8 +99,13 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
                 canvasView.drawing = lastDesign.drawing
             }
             // Restore last scroll/zoom state if available
-            if let offsetData = canvas.value(forKey: "lastContentOffset") as? Data,
-               let nsValue = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSValue.self, from: offsetData) {
+            if let offsetData = canvas.value(forKey: "lastContentOffset")
+                as? Data,
+                let nsValue = try? NSKeyedUnarchiver.unarchivedObject(
+                    ofClass: NSValue.self,
+                    from: offsetData
+                )
+            {
                 lastContentOffset = nsValue.cgPointValue
             }
             if let zoom = canvas.value(forKey: "lastZoomScale") as? NSNumber {
@@ -104,7 +115,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             navigationItem.title = "Drawing"
         }
     }
-    
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         canvasView.frame = view.bounds
@@ -112,7 +123,7 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         canvasView.minimumZoomScale = 0.2
         canvasView.maximumZoomScale = 4.0
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         // Restore zoom and offset before view is visible to avoid lag
@@ -150,12 +161,20 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         if let canvas = canvas {
             let offset = canvasView.contentOffset
             let zoom = canvasView.zoomScale
-            let offsetData = try? NSKeyedArchiver.archivedData(withRootObject: offset, requiringSecureCoding: false)
+            let offsetData = try? NSKeyedArchiver.archivedData(
+                withRootObject: offset,
+                requiringSecureCoding: false
+            )
             canvas.setValue(offsetData, forKey: "lastContentOffset")
-            canvas.setValue(NSNumber(value: Double(zoom)), forKey: "lastZoomScale")
+            canvas.setValue(
+                NSNumber(value: Double(zoom)),
+                forKey: "lastZoomScale"
+            )
             if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
                 let context = appDelegate.persistentContainer.viewContext
-                do { try context.save() } catch { print("Failed to save scroll/zoom: \(error)") }
+                do { try context.save() } catch {
+                    print("Failed to save scroll/zoom: \(error)")
+                }
             }
         }
         Task {
@@ -172,30 +191,38 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         let newWidth = max(bounds.maxX, defaultWidth)
         let newHeight = max(bounds.maxY, defaultHeight)
         // Only shrink if current size is larger than needed
-        if canvasView.contentSize.width > newWidth || canvasView.contentSize.height > newHeight {
+        if canvasView.contentSize.width > newWidth
+            || canvasView.contentSize.height > newHeight
+        {
             canvasView.contentSize = CGSize(width: newWidth, height: newHeight)
         }
     }
-    
-     @objc private func resetZoom() {
-                // Animate zoom reset to 1x
-                UIView.animate(withDuration: 0.25) {
-                    self.canvasView.zoomScale = 1.0
-                }
-            }
+
+    @objc private func resetZoom() {
+        // Animate zoom reset to 1x
+        UIView.animate(withDuration: 0.25) {
+            self.canvasView.zoomScale = 1.0
+        }
+    }
 
     private func generateAndSavePreviewImage() async {
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate
+        else { return }
         let context = appDelegate.persistentContainer.viewContext
         guard let canvas = canvas else { return }
         // Get the latest drawing (if any)
         guard let design = canvas.drawingsArray.last else { return }
         let drawing = design.drawing
-        let bounds = drawing.bounds.isNull ? CGRect(x: 0, y: 0, width: 120, height: 120) : drawing.bounds
+        let bounds =
+            drawing.bounds.isNull
+            ? CGRect(x: 0, y: 0, width: 120, height: 120) : drawing.bounds
         let targetSize = CGSize(width: 120, height: 120)
         let renderRect = CGRect(origin: .zero, size: targetSize)
         UIGraphicsBeginImageContextWithOptions(targetSize, false, 0)
-        guard let ctx = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return }
+        guard let ctx = UIGraphicsGetCurrentContext() else {
+            UIGraphicsEndImageContext()
+            return
+        }
         UIColor.clear.setFill()
         ctx.fill(renderRect)
         // Flip the context vertically (UIKit vs Core Graphics)
@@ -203,11 +230,23 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         ctx.translateBy(x: 0, y: targetSize.height)
         ctx.scaleBy(x: 1, y: -1)
         // Calculate scale and translation to fit drawing into preview
-        let scale = min(targetSize.width / bounds.width, targetSize.height / bounds.height)
-        ctx.translateBy(x: (targetSize.width - bounds.width * scale) / 2 - bounds.minX * scale,
-                y: (targetSize.height - bounds.height * scale) / 2 - bounds.minY * scale)
+        let scale = min(
+            targetSize.width / bounds.width,
+            targetSize.height / bounds.height
+        )
+        ctx.translateBy(
+            x: (targetSize.width - bounds.width * scale) / 2 - bounds.minX
+                * scale,
+            y: (targetSize.height - bounds.height * scale) / 2 - bounds.minY
+                * scale
+        )
         ctx.scaleBy(x: scale, y: scale)
-        await drawing.draw(in: ctx, frame: bounds, from: bounds, darkUserInterfaceStyle: false)
+        await drawing.draw(
+            in: ctx,
+            frame: bounds,
+            from: bounds,
+            darkUserInterfaceStyle: false
+        )
         ctx.restoreGState()
         let image = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
@@ -221,8 +260,6 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         }
     }
 
-
-
     private func updateToolPicker() {
         toolPicker.setVisible(toolPickerShows, forFirstResponder: canvasView)
         toolPicker.addObserver(canvasView)
@@ -232,13 +269,14 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             canvasView.resignFirstResponder()
         }
     }
-    
-//    Canvas
-    
+
+    //    Canvas
+
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
         growCanvasIfNeeded()
         // Save drawing to Core Data on every change
-        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate
+        else { return }
         let context = appDelegate.persistentContainer.viewContext
         guard let canvas = canvas else { return }
         let design = DesignModel(context: context)
@@ -250,22 +288,39 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
         // Generate and save preview image for the current drawing
         Task {
             let drawing = currentDrawing
-            let bounds = drawing.bounds.isNull ? CGRect(x: 0, y: 0, width: 120, height: 120) : drawing.bounds
+            let bounds =
+                drawing.bounds.isNull
+                ? CGRect(x: 0, y: 0, width: 120, height: 120) : drawing.bounds
             let targetSize = CGSize(width: 120, height: 120)
             let renderRect = CGRect(origin: .zero, size: targetSize)
             UIGraphicsBeginImageContextWithOptions(targetSize, false, 0)
-            guard let ctx = UIGraphicsGetCurrentContext() else { UIGraphicsEndImageContext(); return }
+            guard let ctx = UIGraphicsGetCurrentContext() else {
+                UIGraphicsEndImageContext()
+                return
+            }
             UIColor.clear.setFill()
             ctx.fill(renderRect)
             // Flip the context vertically (UIKit vs Core Graphics)
             ctx.saveGState()
             ctx.translateBy(x: 0, y: targetSize.height)
             ctx.scaleBy(x: 1, y: -1)
-            let scale = min(targetSize.width / bounds.width, targetSize.height / bounds.height)
-            ctx.translateBy(x: (targetSize.width - bounds.width * scale) / 2 - bounds.minX * scale,
-                            y: (targetSize.height - bounds.height * scale) / 2 - bounds.minY * scale)
+            let scale = min(
+                targetSize.width / bounds.width,
+                targetSize.height / bounds.height
+            )
+            ctx.translateBy(
+                x: (targetSize.width - bounds.width * scale) / 2 - bounds.minX
+                    * scale,
+                y: (targetSize.height - bounds.height * scale) / 2 - bounds.minY
+                    * scale
+            )
             ctx.scaleBy(x: scale, y: scale)
-            await drawing.draw(in: ctx, frame: bounds, from: bounds, darkUserInterfaceStyle: false)
+            await drawing.draw(
+                in: ctx,
+                frame: bounds,
+                from: bounds,
+                darkUserInterfaceStyle: false
+            )
             ctx.restoreGState()
             let image = UIGraphicsGetImageFromCurrentImageContext()
             UIGraphicsEndImageContext()
@@ -312,17 +367,16 @@ class ViewController: UIViewController, PKCanvasViewDelegate {
             // Do not change contentOffset; user can pan to new area
         }
     }
-    
+
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
         print("Did begin using tool")
     }
-    
+
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         print("Did end using tool")
     }
-    
+
     func canvasViewDidFinishRendering(_ canvasView: PKCanvasView) {
         print("Did finish rendering")
     }
 }
-
